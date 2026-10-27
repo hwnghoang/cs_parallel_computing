@@ -1,0 +1,43 @@
+{
+  "date_local": "2026-10-28T05:34:11.356917+07:00",
+  "os": "Windows-10-10.0.19045-SP0",
+  "cpu": "12th Gen Intel(R) Core(TM) i5-12400",
+  "logical_processors": 12,
+  "compiler": "g++.EXE (Rev4, Built by MSYS2 project) 16.2.0",
+  "compiler_path": "C:\\msys64\\ucrt64\\bin\\g++.EXE",
+  "flags": "-O2 -std=c++17 -Wall -Wextra -pthread",
+  "total_increments": 500000,
+  "repetitions": 5,
+  "counters": [
+    "mutex",
+    "cas",
+    "cas_backoff",
+    "faa"
+  ],
+  "threads": [
+    1,
+    2,
+    4,
+    8,
+    12
+  ],
+  "work": [
+    0,
+    128,
+    4096
+  ],
+  "test_threads": [
+    1,
+    2,
+    4,
+    12
+  ],
+  "thread_affinity": "not pinned",
+  "timing": "steady_clock from before worker creation until all workers joined; process startup and CSV output excluded",
+  "private_work": "volatile unsigned recurrence, independent per call",
+  "sha256": {
+    "counter.cpp": "9338e13363ce7857626d55c39a18cbab6201c0e50dcec2d64b997a0a30f5b918",
+    "run.py": "7e5b90fecab4164458802f6002ae51b26be60a911837f9babf86c6c90f0fbbf2",
+    "analyze.py": "f9378cbb65cbd400b2a9daddd452797f3e6ecfabf1e7d4d7622eedf76e593d96"
+  }
+}
