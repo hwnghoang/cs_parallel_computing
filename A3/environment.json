@@ -1,0 +1,9 @@
+{
+  "date": "2026-10-29T23:49:19.230364",
+  "os": "Windows-10-10.0.19045-SP0",
+  "cpu": "Intel64 Family 6 Model 151 Stepping 5, GenuineIntel",
+  "logical_processors": 12,
+  "compiler": "g++ (Rev4, Built by MSYS2 project) 16.2.0",
+  "total_increments": 500000,
+  "repetitions": 5
+}
