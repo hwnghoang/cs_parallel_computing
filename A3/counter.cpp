@@ -16,7 +16,7 @@ struct counter_mutex
     std::mutex lock;
     long v = 0;
 
-    long inc() 
+    long increment() 
     {
         // Lấy khóa mutex để bảo vệ đoạn critical section
         // std::lock_guard tự động quản lý việc khóa và mở khóa mutex (khác so với unique_lock)
@@ -42,7 +42,7 @@ struct counter_compare_and_swap
 {
     std::atomic<long> v{0};
 
-    long inc() 
+    long increment() 
     {
         // Bước 1: Đọc giá trị hiện tại của v và lưu vào biến cục bộ
         long old_value = v.load(std::memory_order_relaxed);
@@ -85,7 +85,7 @@ struct counter_compare_and_swap_backoff
 {
     std::atomic<long> v{0};
 
-    long inc()
+    long increment()
     {
         long old_value = v.load(std::memory_order_relaxed);
         unsigned int delay = 1;
@@ -126,7 +126,7 @@ struct counter_fetch_and_add
 {
     std::atomic<long> v{0};
 
-    long inc() 
+    long increment() 
     {
         // fetch_add thực hiện phép cộng và trả về giá trị trước khi cộng
         long old_value = v.fetch_add(1, std::memory_order_relaxed);
@@ -141,19 +141,19 @@ struct counter_fetch_and_add
 
 // Test thử với race condition
 // - Nếu check() phát hiện ra counter này bị sai và báo [FAIL]
-// - Nếu check() cho counter này [PASS] -> kiểm tra kết quả đủ điều kiện đúng không
+// - Nếu check() trả về [PASS] -> kiểm tra kết quả đủ điều kiện đúng không
 struct counter_racy
 {
     // Biến đếm tổng dùng chung cho mọi luồng, khai báo dạng nguyên tử
     std::atomic<long> v{0};
 
     // Hàm tăng đếm chứa lỗi Race Condition cố ý
-    long inc()
+    long increment()
     {
         // Đọc giá trị hiện tại của v lưu ở old_value.
         long old_value = v.load(std::memory_order_relaxed);
 
-        // BGhi giá trị (old_value + 1) ngược trở lại v.
+        // Ghi giá trị (old_value + 1) ngược trở lại v.
         // Lệnh store(): atomic write.
         // Tách thao tác đọc và ghi ra 2 lệnh riêng biệt
         // Dẫn đến mất cập nhật khi có luồng khác ghi đè vào
@@ -168,36 +168,6 @@ struct counter_racy
     }
 };
 
-#include <iostream>
-#include <vector>
-#include <thread>
-#include <atomic>
-#include <chrono>
-#include <algorithm>
-#include <string>
-#include <stdexcept>
-
-// =========================================================================
-// CÁC STRUCT PHỤ TRỢ CHO COUNTER
-// =========================================================================
-
-// Wrapper để các thread gọi hàm inc(). Mặc định sẽ gọi thẳng vào counter dùng chung.
-// Việc này giúp hàm check() và bench() có thể dùng chung 1 template cho mọi loại counter.
-template<class Counter>
-struct handle_of
-{
-    Counter& shared_counter;
-    
-    long inc()
-    {
-        return shared_counter.inc(); 
-    }
-};
-
-template<class Counter> constexpr bool returns_global_tickets = true;
-
-
-
 // Giả lập số lượng công việc tốn thời gian
 __attribute__((noinline)) void private_work(int work_size)
 {
@@ -210,7 +180,7 @@ __attribute__((noinline)) void private_work(int work_size)
     }
 }
 
-// Chia công việc để tính toán số lượng inc mà mỗi thread phải thực hiện.
+// Chia công việc để tính toán số lượng increments mà mỗi thread sẽ thực hiện
 long calculate_share(long total, int num_threads, int thread_idx)
 {
     long base = total / num_threads;
@@ -299,12 +269,11 @@ bool check(const char* counter_name, int num_threads, long total)
         {
             if (!group.should_run()) return;
             
-            handle_of<Counter> handle{counter};
             long target_incs = calculate_share(total, num_threads, t);
             
             for (long i = 0; i < target_incs; i++)
             {
-                tickets_got[t].push_back(handle.inc());
+                tickets_got[t].push_back(counter.increment());
             }
         });
     }
@@ -313,37 +282,34 @@ bool check(const char* counter_name, int num_threads, long total)
 
     bool is_ok = (counter.get() == total);
 
-    // Nếu là ticket cấp toàn cục thì kiểm tra xem có ai bị lặp ticket hay ticket sai quy tắc không
-    if (returns_global_tickets<Counter>)
+    // Kiểm tra từng ticket có bị lặp và nằm ngoài phạm vi
+    std::vector<bool> is_seen(total, false);
+    
+    for (const auto& thread_tickets : tickets_got)
     {
-        std::vector<bool> is_seen(total, false);
-        
-        for (const auto& thread_tickets : tickets_got)
+        for (size_t i = 0; i < thread_tickets.size(); i++)
         {
-            for (size_t i = 0; i < thread_tickets.size(); i++)
+            long ticket_val = thread_tickets[i];
+            
+            // Viết rõ ràng từng điều kiện lỗi thay vì gộp chung
+            if (ticket_val < 0 || ticket_val >= total)
             {
-                long ticket_val = thread_tickets[i];
-                
-                // Viết rõ ràng từng điều kiện lỗi thay vì gộp chung
-                if (ticket_val < 0 || ticket_val >= total)
-                {
-                    is_ok = false; // ticket nằm ngoài phạm vi
-                } 
-                else if (is_seen[ticket_val])
-                {
-                    is_ok = false; // ticket bị cấp trùng cho thread khác
-                } 
-                else if (i > 0 && ticket_val <= thread_tickets[i - 1])
-                {
-                    is_ok = false; // ticket trong cùng 1 thread không tăng dần
-                } 
-                else
-                {
-                    is_seen[ticket_val] = true;
-                }
+                is_ok = false; // ticket nằm ngoài phạm vi
+            } 
+            else if (is_seen[ticket_val])
+            {
+                is_ok = false; // ticket bị cấp trùng cho thread khác
+            } 
+            else if (i > 0 && ticket_val <= thread_tickets[i - 1])
+            {
+                is_ok = false; // ticket trong cùng 1 thread không tăng dần
+            } 
+            else
+            {
+                is_seen[ticket_val] = true;
             }
         }
-    }
+    }   
 
     std::printf("[%s] %s | threads: %d | expected: %ld | actual: %ld\n", 
                 is_ok ? "PASS" : "FAIL", counter_name, num_threads, total, counter.get());
@@ -364,12 +330,11 @@ double bench(int num_threads, long total, int work_size)
         {
             if (!group.should_run()) return;
             
-            handle_of<Counter> handle{counter};
             long target_incs = calculate_share(total, num_threads, t);
             
             for (long i = 0; i < target_incs; ++i)
             {
-                handle.inc();
+                counter.increment();
                 private_work(work_size);
             }
         });
@@ -384,7 +349,7 @@ double bench(int num_threads, long total, int work_size)
 
     if (counter.get() != total)
     {
-        throw std::runtime_error("Đếm sai tổng số ở hàm bench!");
+        throw std::runtime_error("Count mismatch in bench!");
     }
     
     return seconds;
@@ -399,7 +364,7 @@ long parse_number(const char* arg, long min_val, long max_val)
     
     if (arg[end_idx] != '\0' || value < min_val || value > max_val)
     {
-        throw std::invalid_argument("Tham số đầu vào không hợp lệ hoặc nằm ngoài dải cho phép.");
+        throw std::invalid_argument("Invalid input parameter or out of allowed range.");
     }
     return value;
 }
@@ -422,7 +387,7 @@ int main(int argc, char** argv)
                 {
                     if (t == 2)
                     {
-                        throw std::runtime_error("Giả lập văng lỗi khi tạo thread thứ 3");
+                        throw std::runtime_error("Simulated failure while creating thread 3");
                     }
                     group.workers.emplace_back([&group, &run_count]()
                     {
@@ -439,10 +404,10 @@ int main(int argc, char** argv)
             
             if (run_count.load(std::memory_order_relaxed) != 0)
             {
-                throw std::runtime_error("Lỗi: Các thread vẫn chạy dù đã bị hủy.");
+                throw std::runtime_error("Error: threads still running after cancellation.");
             }
             
-            std::puts("PASS: Không treo chương trình");
+            std::puts("PASS: program did not hang");
             return 0;
         }
 
@@ -501,22 +466,26 @@ int main(int argc, char** argv)
                 
                 if (is_detected)
                 {
-                    std::puts("PASS: Hàm check đã phát hiện lỗi của racy counter.");
+                    std::puts("PASS: check detected racy counter error.");
                 }
                 else
                 {
-                    std::puts("FAIL: Hàm check không phát hiện ra racy counter!");
+                    std::puts("FAIL: check did not detect racy counter!");
                     all_passed = false;
                 }
             }
-            
+            else
+            {
+                all_passed = false;
+            }
+                        
             return all_passed ? 0 : 1; 
         }
 
         // benchmark mode: counter_name, num_threads, total, work_size
         if (argc != 5)
         {
-            std::fprintf(stderr, "Cú pháp: %s test | list | <counter_name> <num_threads> <total> <work_size>\n", argv[0]);
+            std::fprintf(stderr, "Usage: %s test | list | <counter_name> <num_threads> <total> <work_size>\n", argv[0]);
             return 1;
         }
 
@@ -548,13 +517,13 @@ int main(int argc, char** argv)
         }
 
         // Xuất kết quả dạng CSV
-        std::printf("%s, %d, %ld, %d, %.9f, %.0f\n", mode.c_str(), threads, total, work, seconds, total / seconds);
+        std::printf("%s,%d,%ld,%d,%.9f,%.0f\n", mode.c_str(), threads, total, work, seconds, total / seconds);
         return 0;
 
     } 
     catch (const std::exception& error)
     {
-        std::fprintf(stderr, "LỖI FATAL: %s\n", error.what());
+        std::fprintf(stderr, "FATAL ERROR: %s\n", error.what());
         return 1;
     }
 }
