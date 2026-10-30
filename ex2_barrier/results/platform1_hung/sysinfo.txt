@@ -1,0 +1,19 @@
+name: platform1_hung
+date: Fri Oct 30 07:56:46 SEAST 2026
+uname: MINGW64_NT-10.0-26200 DESKTOP-3N6G4O9 3.6.10-5a1665c8.x86_64 2026-09-28 10:40 UTC x86_64 Msys
+
+
+Name                      : 13th Gen Intel(R) Core(TM) i5-13400F
+NumberOfCores             : 10
+NumberOfLogicalProcessors : 16
+MaxClockSpeed             : 2500
+L2CacheSize               : 9728
+L3CacheSize               : 20480
+
+
+
+Microsoft Windows 11 Pro 10.0.26200
+RAM GB: 63.8
+Model: B760M Pro RS/D4 WiFi
+Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)
+compiler: g++.exe (Rev4, Built by MSYS2 project) 16.2.0

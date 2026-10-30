@@ -1,0 +1,15 @@
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Barrier} & $N=2$ & $N=3$ & $N=4$ & $N=16$ & $N=32$$^{*}$ \\
+\midrule
+\texttt{sense-spin} & \textbf{PASS} (0.53\,s) & \textbf{PASS} (0.76\,s) & \textbf{PASS} (1.00\,s) & \textbf{PASS} (500.25\,s) & \textbf{PASS} (12.56\,s) \\
+\texttt{sense-backoff} & \textbf{PASS} (0.75\,s) & \textbf{PASS} (1.09\,s) & \textbf{PASS} (1.53\,s) & \textbf{PASS} (61.81\,s) & \textbf{PASS} (127.15\,s) \\
+\texttt{sense-yield} & \textbf{PASS} (0.51\,s) & \textbf{PASS} (0.73\,s) & \textbf{PASS} (0.97\,s) & \textbf{PASS} (3.39\,s) & \textbf{PASS} (0.17\,s) \\
+\texttt{sense-seqcst} & \textbf{PASS} (0.52\,s) & \textbf{PASS} (0.75\,s) & \textbf{PASS} (0.98\,s) & \textbf{PASS} (5.25\,s) & \textbf{PASS} (104.78\,s) \\
+\texttt{std-barrier} & \textbf{PASS} (0.49\,s) & \textbf{PASS} (1.04\,s) & \textbf{PASS} (1.56\,s) & \textbf{PASS} (3.10\,s) & \textbf{PASS} (0.19\,s) \\
+\texttt{pthread-barrier} & \textbf{PASS} (0.87\,s) & \textbf{PASS} (1.46\,s) & \textbf{PASS} (1.80\,s) & \textbf{PASS} (5.26\,s) & \textbf{PASS} (0.36\,s) \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}\raggedright\footnotesize $E=\num{100000}$ episodes per run; $^{*}$oversubscribed ($2H$ threads), run with 3000 episodes (300 for \texttt{sense-spin}).
+% 30 runs, 0 failed
